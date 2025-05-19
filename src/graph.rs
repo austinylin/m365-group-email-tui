@@ -23,6 +23,10 @@ pub struct ConversationSummary {
     pub topic: String,
     #[serde(rename = "preview")]
     pub preview: String,
+    #[serde(rename = "lastDeliveredDateTime")]
+    pub last_delivered: Option<String>,
+    #[serde(rename = "uniqueSenders")]
+    pub unique_senders: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]

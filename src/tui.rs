@@ -30,6 +30,16 @@ pub struct App {
     links: Vec<String>,
 }
 
+// Helper function to format the date/time in the user's local timezone
+fn format_datetime(datetime: &str) -> String {
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(datetime) {
+        let local = dt.with_timezone(&chrono::Local);
+        local.format("%b %d %H:%M").to_string()
+    } else {
+        datetime.to_string()
+    }
+}
+
 // Helper function to truncate preview text
 fn truncate_preview(text: &str, max_length: usize) -> String {
     if text.len() <= max_length {
@@ -243,32 +253,57 @@ impl App {
             ])
             .split(chunks[0]);
 
-        // Create message list items
-        let sidebar_width = 38;
-        let max_subject_len = 32;
+        // Create message list items with responsive width
+        let sidebar_width = main_chunks[0].width.saturating_sub(2) as usize;
+        let max_subject_len = sidebar_width.saturating_sub(2);
         let mut items: Vec<ListItem> = Vec::new();
         let msg_count = self.messages.len();
         for (i, msg) in self.messages.iter().enumerate() {
             let mut subject = msg.topic.clone();
             if subject.len() > max_subject_len {
-                subject.truncate(max_subject_len - 3);
+                subject.truncate(max_subject_len.saturating_sub(3));
                 subject.push_str("...");
             }
-            let preview = truncate_preview(&msg.preview, 80);
-            let (preview1, preview2) = if preview.len() > 40 {
-                (preview[..40].to_string(), preview[40..].to_string())
+
+            let preview = truncate_preview(&msg.preview, sidebar_width * 2);
+            let (preview1, preview2) = if preview.len() > sidebar_width {
+                (
+                    preview[..sidebar_width].to_string(),
+                    preview[sidebar_width..].to_string(),
+                )
             } else {
                 (preview.clone(), String::new())
             };
-            let first_line: Vec<Span> = vec![
-                Span::styled(subject.clone(), Style::default().add_modifier(Modifier::BOLD)),
-            ];
-            let second_line: Vec<Span> = vec![Span::raw(preview1)];
-            let third_line: Vec<Span> = vec![Span::raw(preview2)];
+
+            let sender = msg
+                .unique_senders
+                .as_ref()
+                .and_then(|s| s.get(0))
+                .cloned()
+                .unwrap_or_else(|| "".to_string());
+            let datetime = msg
+                .last_delivered
+                .as_deref()
+                .map(format_datetime)
+                .unwrap_or_else(String::new);
+
+            let dt_len = datetime.len();
+            let sender_len = sender.len();
+            let space = if sidebar_width > sender_len + dt_len {
+                sidebar_width - sender_len - dt_len
+            } else {
+                1
+            };
+            let first_line = vec![Span::raw(format!("{}{}{}", sender, " ".repeat(space), datetime))];
+
+            let second_line: Vec<Span> = vec![Span::styled(subject.clone(), Style::default().add_modifier(Modifier::BOLD))];
+            let third_line: Vec<Span> = vec![Span::raw(preview1)];
+            let fourth_line: Vec<Span> = vec![Span::raw(preview2)];
             let mut lines = vec![
                 Line::from(first_line),
                 Line::from(second_line),
                 Line::from(third_line),
+                Line::from(fourth_line),
             ];
             if i < msg_count - 1 {
                 lines.push(Line::from(vec![Span::styled(
@@ -290,7 +325,7 @@ impl App {
         let details_lines: Vec<String> = details_text.lines().map(|s| s.to_string()).collect();
 
         let details_scroll = self.details_scroll as usize;
-        let details_visible = 20; // number of lines to show at once
+        let details_visible = main_chunks[1].height.saturating_sub(2) as usize;
         let details_slice = if details_lines.len() > details_visible {
             let start = details_scroll.min(details_lines.len().saturating_sub(details_visible));
             let end = start + details_visible;
