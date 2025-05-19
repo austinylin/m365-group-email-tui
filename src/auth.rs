@@ -1,9 +1,9 @@
+use anyhow::Result;
 use oauth2::{
     basic::BasicClient, reqwest::async_http_client, AuthUrl, ClientId, ClientSecret, Scope,
     TokenResponse, TokenUrl,
 };
 use std::env;
-use anyhow::Result;
 
 pub async fn get_access_token() -> Result<String> {
     let client_id = ClientId::new(env::var("CLIENT_ID")?);
@@ -23,7 +23,9 @@ pub async fn get_access_token() -> Result<String> {
 
     let token_result = client
         .exchange_client_credentials()
-        .add_scope(Scope::new("https://graph.microsoft.com/.default".to_string()))
+        .add_scope(Scope::new(
+            "https://graph.microsoft.com/.default".to_string(),
+        ))
         .request_async(async_http_client)
         .await?;
 

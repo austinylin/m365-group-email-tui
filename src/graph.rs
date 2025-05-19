@@ -2,7 +2,6 @@ use anyhow::Result;
 use reqwest::Client;
 use serde::Deserialize;
 
-
 #[derive(Debug, Deserialize)]
 struct GroupResponse {
     value: Vec<Group>,
