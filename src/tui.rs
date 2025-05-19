@@ -1,19 +1,19 @@
 use crate::graph;
 use anyhow::Result;
+use copypasta::{ClipboardContext, ClipboardProvider};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use html2text::from_read;
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, List, ListItem, Paragraph, ListState, Wrap},
-    text::{Span, Line},
+    text::{Line, Span},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
 };
-use std::{io, panic};
-use copypasta::{ClipboardContext, ClipboardProvider};
-use html2text::from_read;
 use scraper::{Html, Selector};
+use std::{io, panic};
 
 use crate::graph::ConversationSummary;
 
@@ -113,20 +113,20 @@ impl App {
                     .await?;
                 if let Some(post) = posts["value"].as_array().and_then(|arr| arr.get(0)) {
                     let subject = post["subject"].as_str().unwrap_or("(No Subject)");
-                    let from = post["from"]["emailAddress"]["address"].as_str().unwrap_or("<unknown>");
+                    let from = post["from"]["emailAddress"]["address"]
+                        .as_str()
+                        .unwrap_or("<unknown>");
                     let date = post["createdDateTime"].as_str().unwrap_or("");
                     let body_type = post["body"]["contentType"].as_str().unwrap_or("");
                     let body = post["body"]["content"].as_str().unwrap_or("");
 
-                    let mut details_content = format!(
-                        "From: {}\nSubject: {}\nDate: {}\n\n",
-                        from, subject, date
-                    );
+                    let mut details_content =
+                        format!("From: {}\nSubject: {}\nDate: {}\n\n", from, subject, date);
 
                     if body_type.to_lowercase() == "html" {
                         let plain_text_body = from_read(body.as_bytes(), 80);
                         details_content.push_str(&plain_text_body);
-                        
+
                         let fragment = Html::parse_fragment(body);
                         let selector = Selector::parse("a").unwrap();
                         self.links = fragment
@@ -134,13 +134,16 @@ impl App {
                             .filter_map(|el| el.value().attr("href").map(|s| s.to_string()))
                             .filter(|url| url != "#" && !url.starts_with("#"))
                             .collect();
-
                     } else {
                         details_content.push_str(body);
                         self.links.clear();
                     }
                     self.details = Some(details_content);
-                    self.status_msg = format!("{} link(s) found. Press 1-{} to copy.", self.links.len(), self.links.len().min(9));
+                    self.status_msg = format!(
+                        "{} link(s) found. Press 1-{} to copy.",
+                        self.links.len(),
+                        self.links.len().min(9)
+                    );
                 }
             }
         }
@@ -238,19 +241,13 @@ impl App {
         // Create the main layout
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Min(0),
-                Constraint::Length(3),
-            ])
+            .constraints([Constraint::Min(0), Constraint::Length(3)])
             .split(f.size());
 
         // Split the main area into two columns
         let main_chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(40),
-                Constraint::Percentage(60),
-            ])
+            .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
             .split(chunks[0]);
 
         // Create message list items with responsive width
@@ -288,15 +285,29 @@ impl App {
                 .unwrap_or_else(String::new);
 
             let dt_len = datetime.len();
-            let sender_len = sender.len();
-            let space = if sidebar_width > sender_len + dt_len {
-                sidebar_width - sender_len - dt_len
-            } else {
-                1
-            };
-            let first_line = vec![Span::raw(format!("{}{}{}", sender, " ".repeat(space), datetime))];
+            let available = sidebar_width.saturating_sub(dt_len).saturating_sub(1); // space between sender and date
 
-            let second_line: Vec<Span> = vec![Span::styled(subject.clone(), Style::default().add_modifier(Modifier::BOLD))];
+            let mut sender_trunc = sender.clone();
+            if sender_trunc.len() > available {
+                if available > 3 {
+                    sender_trunc.truncate(available - 3);
+                    sender_trunc.push_str("...");
+                } else {
+                    sender_trunc.truncate(available);
+                }
+            }
+
+            let first_line = vec![Span::raw(format!(
+                "{:<width$} {}",
+                sender_trunc,
+                datetime,
+                width = available
+            ))];
+
+            let second_line: Vec<Span> = vec![Span::styled(
+                subject.clone(),
+                Style::default().add_modifier(Modifier::BOLD),
+            )];
             let third_line: Vec<Span> = vec![Span::raw(preview1)];
             let fourth_line: Vec<Span> = vec![Span::raw(preview2)];
             let mut lines = vec![
@@ -321,7 +332,10 @@ impl App {
             .highlight_symbol("> ");
 
         // Create the message details view
-        let details_text = self.details.clone().unwrap_or_else(|| "No message selected".to_string());
+        let details_text = self
+            .details
+            .clone()
+            .unwrap_or_else(|| "No message selected".to_string());
         let details_lines: Vec<String> = details_text.lines().map(|s| s.to_string()).collect();
 
         let details_scroll = self.details_scroll as usize;
@@ -335,16 +349,23 @@ impl App {
         };
         let details_text_scrolled = details_slice.join("\n");
         let details_view = Paragraph::new(details_text_scrolled)
-            .block(Block::default().title("Message Details").borders(Borders::ALL))
+            .block(
+                Block::default()
+                    .title("Message Details")
+                    .borders(Borders::ALL),
+            )
             .wrap(Wrap { trim: true });
 
         // Create help text
-        let help_text = Paragraph::new(format!("↑/↓: Navigate | q: Quit | r: Refresh | 1-9: Copy link\n{}", self.status_msg))
-            .block(Block::default().borders(Borders::ALL));
+        let help_text = Paragraph::new(format!(
+            "↑/↓: Navigate | q: Quit | r: Refresh | 1-9: Copy link\n{}",
+            self.status_msg
+        ))
+        .block(Block::default().borders(Borders::ALL));
 
         // Render widgets
         f.render_stateful_widget(list, main_chunks[0], &mut self.list_state);
         f.render_widget(details_view, main_chunks[1]);
         f.render_widget(help_text, chunks[1]);
     }
-} 
+}
