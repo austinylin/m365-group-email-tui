@@ -2,63 +2,6 @@ use anyhow::Result;
 use reqwest::Client;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
-pub struct Post {
-    pub _id: String,
-    #[serde(rename = "createdDateTime")]
-    pub _created: Option<String>,
-    #[serde(rename = "hasAttachments")]
-    pub _has_attachments: bool,
-    #[serde(rename = "from")]
-    pub _from: Option<Sender>,
-    pub _body: EmailBody,
-    pub _subject: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct EmailBody {
-    #[serde(rename = "contentType")]
-    pub _content_type: String,
-    pub _content: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Sender {
-    #[serde(rename = "emailAddress")]
-    pub _email_address: Option<EmailAddress>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct EmailAddress {
-    pub _name: Option<String>,
-    pub _address: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ConversationResponse {
-    _value: Vec<Conversation>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Conversation {
-    pub _id: String,
-    pub _topic: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ThreadResponse {
-    _value: Vec<Thread>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Thread {
-    pub _id: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct PostResponse {
-    _value: Vec<Post>,
-}
 
 #[derive(Debug, Deserialize)]
 struct GroupResponse {

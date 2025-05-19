@@ -30,16 +30,6 @@ pub struct App {
     links: Vec<String>,
 }
 
-// Helper function to format the date/time
-fn format_datetime(datetime: &str) -> String {
-    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(datetime) {
-        let local = dt.with_timezone(&chrono::Local);
-        local.format("%b %d %H:%M").to_string()
-    } else {
-        datetime.to_string()
-    }
-}
-
 // Helper function to truncate preview text
 fn truncate_preview(text: &str, max_length: usize) -> String {
     if text.len() <= max_length {
@@ -234,7 +224,7 @@ impl App {
         Ok(())
     }
 
-    fn ui(&self, f: &mut Frame) {
+    fn ui(&mut self, f: &mut Frame) {
         // Create the main layout
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -318,7 +308,7 @@ impl App {
             .block(Block::default().borders(Borders::ALL));
 
         // Render widgets
-        f.render_stateful_widget(list, main_chunks[0], &mut self.list_state.clone());
+        f.render_stateful_widget(list, main_chunks[0], &mut self.list_state);
         f.render_widget(details_view, main_chunks[1]);
         f.render_widget(help_text, chunks[1]);
     }
