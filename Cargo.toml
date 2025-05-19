@@ -1,0 +1,20 @@
+[package]
+name = "m365-group-email-tui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+oauth2 = "4"
+dotenvy = "0.15"
+anyhow = "1"
+ratatui = "0.24"
+crossterm = "0.27"
+chrono = "0.4"
+scraper = "0.18"
+html2text = "0.6"
+copypasta = "0.10"
+regex = "1"
